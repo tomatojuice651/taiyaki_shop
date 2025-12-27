@@ -2,7 +2,7 @@ import './globals.css'
 
 export const metadata = {
   title: '鯛魚燒商城 | Taiyaki Shop',
-  description: '使用鯛魚燒點數兌換獎品',
+  description: '使用植物園鯛魚燒點數兌換獎品',
 }
 
 export default function RootLayout({ children }) {
