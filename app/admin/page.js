@@ -207,6 +207,20 @@ export default function AdminPage() {
     loadOrders()
   }
 
+  // 通知狀態管理
+  const toggleNotificationStatus = async (notification) => {
+    await supabase.from('win_notifications').update({ notified: !notification.notified }).eq('id', notification.id)
+    setMessage({ text: '✅ 狀態已更新', type: 'success' })
+    loadNotifications()
+  }
+
+  const deleteNotification = async (id) => {
+    if (!confirm('確定要刪除此通知嗎？')) return
+    await supabase.from('win_notifications').delete().eq('id', id)
+    setMessage({ text: '✅ 已刪除', type: 'success' })
+    loadNotifications()
+  }
+
   if (loading) return <main className="min-h-screen flex items-center justify-center"><div className="text-2xl text-orange-600">載入中...</div></main>
 
   if (!isAuthorized) {
@@ -390,22 +404,98 @@ export default function AdminPage() {
         {/* 中獎通知 */}
         {activeTab === 'notifications' && (
           <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold mb-4">🔔 最近中獎通知 ({notifications.length})</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">🔔 最近中獎通知 ({notifications.length})</h2>
+              <button onClick={loadNotifications} className="text-sm text-orange-500 hover:text-orange-700">🔄 重新整理</button>
+            </div>
             {notifications.length === 0 ? <p className="text-gray-500 text-center py-8">目前沒有中獎通知</p> : (
-              <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                {notifications.map((n) => (
-                  <div key={n.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="text-3xl">{n.item_type === 'reward' ? '🎁' : n.item_type === 'gacha' ? '🎰' : n.item_type === 'gacha_multi' ? '🎊' : '📦'}</div>
-                    <div className="flex-1">
-                      <p className="font-medium">{n.discord_name}</p>
-                      <p className="text-sm text-gray-600">{n.item_name}</p>
-                      <p className="text-xs text-gray-400">{new Date(n.created_at).toLocaleString('zh-TW')}</p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs ${n.notified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{n.notified ? '已通知' : '待處理'}</span>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left">類型</th>
+                      <th className="px-3 py-2 text-left">用戶名稱</th>
+                      <th className="px-3 py-2 text-left">Discord ID</th>
+                      <th className="px-3 py-2 text-left">獎品</th>
+                      <th className="px-3 py-2 text-left">時間</th>
+                      <th className="px-3 py-2 text-left">狀態</th>
+                      <th className="px-3 py-2 text-left">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {notifications.map((n) => (
+                      <tr key={n.id} className="border-t hover:bg-gray-50">
+                        <td className="px-3 py-3">
+                          <span className="text-2xl">
+                            {n.item_type === 'reward' ? '🎁' : n.item_type === 'gacha' ? '🎰' : n.item_type === 'gacha_multi' ? '🎊' : '📦'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 font-medium">{n.discord_name}</td>
+                        <td className="px-3 py-3">
+                          <code className="bg-gray-100 px-2 py-1 rounded text-xs">{n.discord_id}</code>
+                          <button 
+                            onClick={() => navigator.clipboard.writeText(n.discord_id)} 
+                            className="ml-2 text-gray-400 hover:text-gray-600"
+                            title="複製 ID"
+                          >
+                            📋
+                          </button>
+                        </td>
+                        <td className="px-3 py-3">{n.item_name}</td>
+                        <td className="px-3 py-3 text-gray-500">{new Date(n.created_at).toLocaleString('zh-TW')}</td>
+                        <td className="px-3 py-3">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            n.notified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {n.notified ? '已處理' : '待處理'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => toggleNotificationStatus(n)}
+                              className={`text-xs px-2 py-1 rounded ${
+                                n.notified 
+                                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' 
+                                  : 'bg-green-100 text-green-800 hover:bg-green-200'
+                              }`}
+                            >
+                              {n.notified ? '標記待處理' : '標記已處理'}
+                            </button>
+                            <button
+                              onClick={() => deleteNotification(n.id)}
+                              className="text-xs px-2 py-1 rounded bg-red-100 text-red-800 hover:bg-red-200"
+                            >
+                              刪除
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
+            
+            {/* 統計資訊 */}
+            <div className="mt-6 pt-4 border-t grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                <p className="text-2xl font-bold text-yellow-600">{notifications.filter(n => !n.notified).length}</p>
+                <p className="text-sm text-gray-600">待處理</p>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4 text-center">
+                <p className="text-2xl font-bold text-green-600">{notifications.filter(n => n.notified).length}</p>
+                <p className="text-sm text-gray-600">已處理</p>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-4 text-center">
+                <p className="text-2xl font-bold text-orange-600">{notifications.filter(n => n.item_type === 'reward').length}</p>
+                <p className="text-sm text-gray-600">兌換獎品</p>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4 text-center">
+                <p className="text-2xl font-bold text-purple-600">{notifications.filter(n => n.item_type.includes('gacha')).length}</p>
+                <p className="text-sm text-gray-600">福引中獎</p>
+              </div>
+            </div>
           </div>
         )}
       </div>

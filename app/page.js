@@ -461,7 +461,7 @@ export default function Home() {
             <div>
               <h2 className="text-2xl font-bold text-gray-800 mb-4">📦 郵寄資料</h2>
               <div className="bg-white rounded-2xl shadow-lg p-6 max-w-lg mx-auto">
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6"><p className="text-yellow-800 text-sm mt-2">📮 此表單僅供選擇<strong>郵寄</strong>方式的用戶填寫。</p></div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6"><p className="text-yellow-800 text-sm">💡 如果您選擇使用<strong>賣貨便</strong>，請直接到<a href={CONVENIENCE_STORE_LINK} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline ml-1">此連結</a>下單付運費即可，不需填寫此表單。</p><p className="text-yellow-800 text-sm mt-2">📮 此表單僅供選擇<strong>郵寄</strong>方式的用戶填寫。</p></div>
                 <form onSubmit={handleShippingSubmit} className="space-y-4">
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">獎品名稱 <span className="text-red-500">*</span></label><input type="text" value={shippingForm.itemName} onChange={(e) => setShippingForm({...shippingForm, itemName: e.target.value})} placeholder="請輸入您要領取的獎品名稱" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500" required/></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">收件人姓名 <span className="text-red-500">*</span></label><input type="text" value={shippingForm.recipientName} onChange={(e) => setShippingForm({...shippingForm, recipientName: e.target.value})} placeholder="真實姓名" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500" required/></div>
