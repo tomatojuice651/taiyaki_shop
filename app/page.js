@@ -18,6 +18,7 @@ export default function Home() {
   const [message, setMessage] = useState({ text: '', type: '' })
   const [activeTab, setActiveTab] = useState('rewards')
   const [rewards, setRewards] = useState([])
+  const [freeGifts, setFreeGifts] = useState([]) // 免費贈物
   const [prizes, setPrizes] = useState([])
   const [hasWonPrize, setHasWonPrize] = useState(false)
   const [isDrawing, setIsDrawing] = useState(false)
@@ -94,6 +95,7 @@ export default function Home() {
   useEffect(() => {
     if (supabase && user) {
       loadRewards()
+      loadFreeGifts()
       loadPrizes()
       checkWinHistory(user.id)
       loadUserHistory(user.id)
@@ -108,8 +110,15 @@ export default function Home() {
   }
 
   const loadRewards = async () => {
-    const { data } = await supabase.from('rewards').select('*').gt('quantity', 0).order('cost', { ascending: true })
+    // 只載入 cost > 0 的獎品（付費兌換）
+    const { data } = await supabase.from('rewards').select('*').gt('quantity', 0).gt('cost', 0).order('cost', { ascending: true })
     if (data) setRewards(data)
+  }
+
+  const loadFreeGifts = async () => {
+    // 載入 cost = 0 的獎品（免費贈物）
+    const { data } = await supabase.from('rewards').select('*').gt('quantity', 0).eq('cost', 0).order('name', { ascending: true })
+    if (data) setFreeGifts(data)
   }
 
   const loadPrizes = async () => {
@@ -223,6 +232,44 @@ export default function Home() {
       sendWebhookNotification('兌換獎品', reward.name, user.displayName, user.id)
     } catch (err) {
       setMessage({ text: '兌換失敗，請稍後再試', type: 'error' })
+    }
+  }
+
+  // 領取免費贈物
+  const handleClaimFreeGift = async (gift) => {
+    if (!user) {
+      setMessage({ text: '請先登入', type: 'error' })
+      return
+    }
+    try {
+      // 扣除贈物數量
+      await supabase.from('rewards').update({ quantity: gift.quantity - 1 }).eq('id', gift.id)
+      // 記錄訂單
+      await supabase.from('redemption_orders').insert({ 
+        discord_id: user.id, 
+        item_type: 'free_gift', 
+        item_name: gift.name, 
+        points_spent: 0, 
+        delivery_method: 'convenience_store' 
+      })
+      // 通知管理員
+      await supabase.from('win_notifications').insert({ 
+        discord_id: user.id, 
+        discord_name: user.displayName, 
+        item_type: 'free_gift', 
+        item_name: gift.name 
+      })
+      setHasWonPrize(true)
+      setMessage({ 
+        text: `🎉 成功領取「${gift.name}」！請到「📦 郵寄」填寫收件資料，或到賣貨便下單付運費`, 
+        type: 'success', 
+        link: CONVENIENCE_STORE_LINK 
+      })
+      loadFreeGifts()
+      sendWebhookNotification('免費贈物', gift.name, user.displayName, user.id)
+    } catch (err) {
+      console.error('Claim free gift error:', err)
+      setMessage({ text: '領取失敗，請稍後再試', type: 'error' })
     }
   }
 
@@ -471,6 +518,7 @@ export default function Home() {
           <div className="mb-6">
             <div className="flex bg-white rounded-xl shadow p-1 flex-wrap">
               <button onClick={() => setActiveTab('rewards')} className={`flex-1 py-3 px-4 rounded-lg font-medium transition min-w-[70px] ${activeTab === 'rewards' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🎁 兌換</button>
+              <button onClick={() => setActiveTab('free')} className={`flex-1 py-3 px-4 rounded-lg font-medium transition min-w-[70px] ${activeTab === 'free' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🎀 免費</button>
               <button onClick={() => setActiveTab('gacha')} className={`flex-1 py-3 px-4 rounded-lg font-medium transition min-w-[70px] ${activeTab === 'gacha' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🎰 福引</button>
               <button onClick={() => setActiveTab('code')} className={`flex-1 py-3 px-4 rounded-lg font-medium transition min-w-[70px] ${activeTab === 'code' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🎫 兌換碼</button>
               <button onClick={() => setActiveTab('history')} className={`flex-1 py-3 px-4 rounded-lg font-medium transition min-w-[70px] ${activeTab === 'history' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>📋 紀錄</button>
@@ -493,6 +541,50 @@ export default function Home() {
                         {reward.description && <p className="text-sm text-gray-500 mb-2">{reward.description}</p>}
                         <div className="flex justify-between items-center mb-3"><span className="text-green-600 font-bold">🐟 {reward.cost} 個</span><span className="text-gray-500 text-sm">剩餘 {reward.quantity}</span></div>
                         <button onClick={() => handleRedeem(reward)} disabled={!dbUser || dbUser.points < reward.cost} className={`w-full py-2 rounded-lg font-bold transition ${dbUser && dbUser.points >= reward.cost ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>{!dbUser || dbUser.points < reward.cost ? '點數不足' : '兌換'}</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'free' && (
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">🎀 免費贈物</h2>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <p className="text-yellow-800 text-sm">💝 這些是免費贈送的物品，只需支付運費即可領取！</p>
+                <p className="text-yellow-800 text-sm mt-1">📦 領取後請到「郵寄」分頁填寫收件資料，或使用賣貨便下單。</p>
+              </div>
+              {freeGifts.length === 0 ? (
+                <div className="bg-white rounded-2xl shadow-lg p-8 text-center text-gray-500">
+                  <div className="text-5xl mb-4">🎁</div>
+                  <p>目前沒有免費贈物</p>
+                  <p className="text-sm mt-2">請稍後再來看看喵～</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {freeGifts.map((gift) => (
+                    <div key={gift.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition border-2 border-pink-200">
+                      <div className="h-48 bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center relative">
+                        {gift.image_url ? <img src={gift.image_url} alt={gift.name} className="w-full h-full object-cover"/> : <span className="text-6xl">🎀</span>}
+                        <div className="absolute top-2 right-2 bg-pink-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                          免費
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="text-lg font-bold text-gray-800 mb-1">{gift.name}</h3>
+                        {gift.description && <p className="text-sm text-gray-500 mb-2">{gift.description}</p>}
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-pink-600 font-bold">✨ 免費領取</span>
+                          <span className="text-gray-500 text-sm">剩餘 {gift.quantity}</span>
+                        </div>
+                        <button 
+                          onClick={() => handleClaimFreeGift(gift)} 
+                          className="w-full py-2 rounded-lg font-bold transition bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white"
+                        >
+                          🎁 領取
+                        </button>
                       </div>
                     </div>
                   ))}
