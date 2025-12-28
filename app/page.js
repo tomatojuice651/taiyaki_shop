@@ -153,7 +153,6 @@ export default function Home() {
       wins: wins || []
     })
   }
-  }
 
   const handleLogout = () => {
     setUser(null)
