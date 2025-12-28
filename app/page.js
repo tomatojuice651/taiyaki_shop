@@ -545,6 +545,7 @@ export default function Home() {
                 <div className="bg-orange-50 rounded-lg p-4"><h3 className="font-bold text-orange-700 mb-2">🏠 關於本站</h3><p className="text-sm">本網頁為 35p 的菁英植物園 Discord 伺服器內部點數兌換區，點數僅能透過伺服器內活動獲得。</p></div>
                 <div className="bg-blue-50 rounded-lg p-4"><h3 className="font-bold text-blue-700 mb-2">📦 運費說明</h3><p className="text-sm mb-2">獎品運費由得獎者負擔，無論地球上哪個角落都寄給你！</p><p className="text-sm font-medium">台灣地區運費參考：</p><ul className="list-disc list-inside ml-2 mt-1 text-sm"><li>7-11 賣貨便：58 元</li><li>郵政掛號：80 元</li></ul></div>
                 <div className="bg-green-50 rounded-lg p-4"><h3 className="font-bold text-green-700 mb-2">🎰 福引說明</h3><ul className="text-sm space-y-1"><li>• 單抽：消耗 <span className="font-bold text-green-600">3 個鯛魚燒</span></li><li>• 十連抽：消耗 <span className="font-bold text-green-600">30 個鯛魚燒</span>，額外贈送 <span className="font-bold text-green-600">3 個鯛魚燒</span></li><li>• 每 35 抽達成天井，可選擇指定獎品</li></ul></div>
+                <div className="bg-pink-50 rounded-lg p-4"><h3 className="font-bold text-pink-700 mb-2">🎀 免費贈物</h3><ul className="text-sm space-y-1"><li>• 只需支付運費即可領取</li><li>• <span className="font-bold text-pink-600">每人三個月限領一次</span>，多領不計</li></ul></div>
                 <div className="bg-purple-50 rounded-lg p-4"><h3 className="font-bold text-purple-700 mb-2">🎁 兌換方式</h3><ul className="text-sm space-y-1"><li>• 中獎後請至賣貨便下單付運費</li><li>• 或選擇郵寄，填寫收件資料</li></ul></div>
               </div>
             </div>
@@ -612,7 +613,7 @@ export default function Home() {
               {/* 免費贈物區 */}
               {freeGifts.length > 0 && (
                 <>
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">🎀 免費贈物 <span className="text-sm font-normal text-pink-500">（只需付運費）</span></h2>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4">🎀 免費贈物 <span className="text-sm font-normal text-pink-500">（只需付運費，每人三個月限領一次）</span></h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {freeGifts.map((gift) => (
                       <div key={gift.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition border-2 border-pink-200">
