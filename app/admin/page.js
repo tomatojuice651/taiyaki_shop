@@ -29,6 +29,12 @@ export default function AdminPage() {
   const [editingPrize, setEditingPrize] = useState(null)
   const [editingCode, setEditingCode] = useState(null)
   const [uploading, setUploading] = useState(false)
+  
+  // 用戶管理
+  const [users, setUsers] = useState([])
+  const [userSearch, setUserSearch] = useState('')
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [pointsAdjust, setPointsAdjust] = useState('')
 
   useEffect(() => {
     const savedUser = localStorage.getItem('discord_user')
@@ -50,7 +56,7 @@ export default function AdminPage() {
   }, [isAuthorized])
 
   const loadAllData = async () => {
-    await Promise.all([loadRewards(), loadPrizes(), loadOrders(), loadCodes(), loadNotifications()])
+    await Promise.all([loadRewards(), loadPrizes(), loadOrders(), loadCodes(), loadNotifications(), loadUsers()])
   }
 
   const loadRewards = async () => {
@@ -71,6 +77,42 @@ export default function AdminPage() {
   const loadCodes = async () => {
     const { data } = await supabase.from('exchange_codes').select('*').order('created_at', { ascending: false })
     if (data) setCodes(data)
+  }
+
+  const loadUsers = async () => {
+    const { data } = await supabase.from('users').select('*').order('points', { ascending: false }).limit(100)
+    if (data) setUsers(data)
+  }
+
+  const searchUser = async () => {
+    if (!userSearch.trim()) {
+      loadUsers()
+      return
+    }
+    const { data } = await supabase
+      .from('users')
+      .select('*')
+      .or(`discord_id.ilike.%${userSearch}%`)
+      .limit(50)
+    if (data) setUsers(data)
+  }
+
+  const adjustUserPoints = async (discordId, amount) => {
+    const user = users.find(u => u.discord_id === discordId)
+    if (!user) return
+    
+    const newPoints = Math.max(0, user.points + amount)
+    await supabase.from('users').update({ points: newPoints }).eq('discord_id', discordId)
+    setMessage({ text: `✅ 已調整點數：${amount > 0 ? '+' : ''}${amount}，現有 ${newPoints} 點`, type: 'success' })
+    loadUsers()
+    setPointsAdjust('')
+  }
+
+  const setUserPoints = async (discordId, newPoints) => {
+    await supabase.from('users').update({ points: parseInt(newPoints) }).eq('discord_id', discordId)
+    setMessage({ text: `✅ 已設定點數為 ${newPoints} 點`, type: 'success' })
+    loadUsers()
+    setSelectedUser(null)
   }
 
   const loadNotifications = async () => {
@@ -241,7 +283,7 @@ export default function AdminPage() {
     loadNotifications()
   }
 
-  if (loading) return <main className="min-h-screen flex items-center justify-center"><div className="text-2xl text-green-600">載入中...</div></main>
+  if (loading) return <main className="min-h-screen flex items-center justify-center"><div className="text-2xl text-orange-600">載入中...</div></main>
 
   if (!isAuthorized) {
     return (
@@ -249,7 +291,7 @@ export default function AdminPage() {
         <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
           <h1 className="text-2xl font-bold text-gray-800 mb-4">🔐 管理後台</h1>
           <p className="text-gray-600 mb-6">請先從首頁使用 Discord 登入</p>
-          <a href="/" className="inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg">返回首頁登入</a>
+          <a href="/" className="inline-block bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-lg">返回首頁登入</a>
         </div>
       </main>
     )
@@ -259,7 +301,7 @@ export default function AdminPage() {
     <main className="min-h-screen p-4 md:p-8 bg-gray-100">
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-green-600">🔧 管理後台</h1>
+          <h1 className="text-3xl font-bold text-orange-600">🔧 管理後台</h1>
           <a href="/" className="text-gray-500 hover:text-gray-700">← 返回商城</a>
         </div>
 
@@ -271,11 +313,12 @@ export default function AdminPage() {
         )}
 
         <div className="flex bg-white rounded-xl shadow p-1 mb-6 flex-wrap">
-          <button onClick={() => setActiveTab('rewards')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition min-w-[100px] ${activeTab === 'rewards' ? 'bg-green-500 text-white' : 'text-gray-600 hover:bg-green-100'}`}>🎁 兌換獎品</button>
-          <button onClick={() => setActiveTab('prizes')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition min-w-[100px] ${activeTab === 'prizes' ? 'bg-green-500 text-white' : 'text-gray-600 hover:bg-green-100'}`}>🎰 福引獎品</button>
-          <button onClick={() => setActiveTab('codes')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition min-w-[100px] ${activeTab === 'codes' ? 'bg-green-500 text-white' : 'text-gray-600 hover:bg-green-100'}`}>🎫 兌換碼</button>
-          <button onClick={() => setActiveTab('orders')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition min-w-[100px] ${activeTab === 'orders' ? 'bg-green-500 text-white' : 'text-gray-600 hover:bg-green-100'}`}>📦 郵寄訂單</button>
-          <button onClick={() => setActiveTab('notifications')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition min-w-[100px] ${activeTab === 'notifications' ? 'bg-green-500 text-white' : 'text-gray-600 hover:bg-green-100'}`}>🔔 中獎通知</button>
+          <button onClick={() => setActiveTab('rewards')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition min-w-[80px] ${activeTab === 'rewards' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🎁 獎品</button>
+          <button onClick={() => setActiveTab('prizes')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition min-w-[80px] ${activeTab === 'prizes' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🎰 福引</button>
+          <button onClick={() => setActiveTab('codes')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition min-w-[80px] ${activeTab === 'codes' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🎫 兌換碼</button>
+          <button onClick={() => setActiveTab('users')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition min-w-[80px] ${activeTab === 'users' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>👥 用戶</button>
+          <button onClick={() => setActiveTab('orders')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition min-w-[80px] ${activeTab === 'orders' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>📦 訂單</button>
+          <button onClick={() => setActiveTab('notifications')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition min-w-[80px] ${activeTab === 'notifications' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🔔 通知</button>
         </div>
 
         {/* 兌換獎品管理 */}
@@ -298,7 +341,7 @@ export default function AdminPage() {
                   {rewardForm.image_url && <img src={rewardForm.image_url} alt="preview" className="mt-2 h-20 object-cover rounded"/>}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={handleSaveReward} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg">{editingReward ? '更新' : '新增'}</button>
+                  <button onClick={handleSaveReward} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-lg">{editingReward ? '更新' : '新增'}</button>
                   {editingReward && <button onClick={() => { setEditingReward(null); setRewardForm({ name: '', cost: '', quantity: '', description: '', image_url: '' }) }} className="px-4 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-2 rounded-lg">取消</button>}
                 </div>
               </div>
@@ -339,7 +382,7 @@ export default function AdminPage() {
                   {prizeForm.image_url && <img src={prizeForm.image_url} alt="preview" className="mt-2 h-20 object-cover rounded"/>}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={handleSavePrize} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg">{editingPrize ? '更新' : '新增'}</button>
+                  <button onClick={handleSavePrize} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-lg">{editingPrize ? '更新' : '新增'}</button>
                   {editingPrize && <button onClick={() => { setEditingPrize(null); setPrizeForm({ name: '', quantity: '', probability: '0.01', description: '', image_url: '' }) }} className="px-4 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-2 rounded-lg">取消</button>}
                 </div>
               </div>
@@ -377,7 +420,7 @@ export default function AdminPage() {
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">結束時間</label><input type="datetime-local" value={codeForm.end_time} onChange={(e) => setCodeForm({...codeForm, end_time: e.target.value})} className="w-full px-3 py-2 border rounded-lg"/></div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={handleSaveCode} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg">{editingCode ? '更新' : '新增'}</button>
+                  <button onClick={handleSaveCode} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-lg">{editingCode ? '更新' : '新增'}</button>
                   {editingCode && <button onClick={() => { setEditingCode(null); setCodeForm({ code: '', points: '', max_uses: '1', description: '', start_time: '', end_time: '' }) }} className="px-4 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-2 rounded-lg">取消</button>}
                 </div>
               </div>
@@ -433,12 +476,106 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* 用戶管理 */}
+        {activeTab === 'users' && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">👥 用戶管理 ({users.length})</h2>
+              <button onClick={loadUsers} className="text-sm text-orange-500 hover:text-orange-700">🔄 重新整理</button>
+            </div>
+            
+            {/* 搜尋區 */}
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                placeholder="輸入 Discord ID 搜尋..."
+                className="flex-1 px-3 py-2 border rounded-lg"
+              />
+              <button onClick={searchUser} className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600">搜尋</button>
+            </div>
+            
+            {/* 用戶列表 */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Discord ID</th>
+                    <th className="px-3 py-2 text-left">點數</th>
+                    <th className="px-3 py-2 text-left">快速調整</th>
+                    <th className="px-3 py-2 text-left">自訂</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user.discord_id} className="border-t hover:bg-gray-50">
+                      <td className="px-3 py-3">
+                        <code className="bg-gray-100 px-2 py-1 rounded text-xs">{user.discord_id}</code>
+                        <button 
+                          onClick={() => navigator.clipboard.writeText(user.discord_id)} 
+                          className="ml-2 text-gray-400 hover:text-gray-600"
+                        >
+                          📋
+                        </button>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="font-bold text-orange-600">🐟 {user.points?.toLocaleString() || 0}</span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex gap-1">
+                          <button onClick={() => adjustUserPoints(user.discord_id, -10)} className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200">-10</button>
+                          <button onClick={() => adjustUserPoints(user.discord_id, -1)} className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200">-1</button>
+                          <button onClick={() => adjustUserPoints(user.discord_id, 1)} className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200">+1</button>
+                          <button onClick={() => adjustUserPoints(user.discord_id, 10)} className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200">+10</button>
+                          <button onClick={() => adjustUserPoints(user.discord_id, 100)} className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200">+100</button>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex gap-1 items-center">
+                          <input
+                            type="number"
+                            placeholder="點數"
+                            className="w-20 px-2 py-1 border rounded text-xs"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                setUserPoints(user.discord_id, e.target.value)
+                                e.target.value = ''
+                              }
+                            }}
+                          />
+                          <button 
+                            onClick={(e) => {
+                              const input = e.target.previousSibling
+                              if (input.value) {
+                                setUserPoints(user.discord_id, input.value)
+                                input.value = ''
+                              }
+                            }}
+                            className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200"
+                          >
+                            設定
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {users.length === 0 && (
+              <p className="text-gray-500 text-center py-8">沒有找到用戶</p>
+            )}
+          </div>
+        )}
+
         {/* 中獎通知 */}
         {activeTab === 'notifications' && (
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">🔔 最近中獎通知 ({notifications.length})</h2>
-              <button onClick={loadNotifications} className="text-sm text-green-500 hover:text-green-700">🔄 重新整理</button>
+              <button onClick={loadNotifications} className="text-sm text-orange-500 hover:text-orange-700">🔄 重新整理</button>
             </div>
             {notifications.length === 0 ? <p className="text-gray-500 text-center py-8">目前沒有中獎通知</p> : (
               <div className="overflow-x-auto">
@@ -516,11 +653,11 @@ export default function AdminPage() {
                 <p className="text-sm text-gray-600">待處理</p>
               </div>
               <div className="bg-green-50 rounded-lg p-4 text-center">
-                <p className="text-2xl font-bold text-green-600">{notifications.filter(n => n.notified).length}</p>
+                <p className="text-2xl font-bold text-orange-600">{notifications.filter(n => n.notified).length}</p>
                 <p className="text-sm text-gray-600">已處理</p>
               </div>
               <div className="bg-orange-50 rounded-lg p-4 text-center">
-                <p className="text-2xl font-bold text-green-600">{notifications.filter(n => n.item_type === 'reward').length}</p>
+                <p className="text-2xl font-bold text-orange-600">{notifications.filter(n => n.item_type === 'reward').length}</p>
                 <p className="text-sm text-gray-600">兌換獎品</p>
               </div>
               <div className="bg-purple-50 rounded-lg p-4 text-center">
