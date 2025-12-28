@@ -30,7 +30,7 @@ export default function Home() {
   const [redeemCode, setRedeemCode] = useState('')
   const [isRedeeming, setIsRedeeming] = useState(false)
   const [userHistory, setUserHistory] = useState({ draws: [], redemptions: [], codes: [], points: [], wins: [] })
-  const [pityProgress, setPityProgress] = useState({ total: 0, current: 0, next: 35, canClaim: false })
+  const [pityProgress, setPityProgress] = useState({ total: 0, current: 0, next: 35, milestone: 0, canClaim: false })
   const [darkMode, setDarkMode] = useState(false)
   const [pendingShipping, setPendingShipping] = useState(null) // 待處理的郵寄訂單
 
@@ -576,9 +576,7 @@ export default function Home() {
 
           <div className="mb-6">
             <div className="flex bg-white rounded-xl shadow p-1 flex-wrap">
-              <button onClick={() => setActiveTab('prizeList')} className={`flex-1 py-3 px-4 rounded-lg font-medium transition min-w-[70px] ${activeTab === 'prizeList' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🎯 獎品</button>
               <button onClick={() => setActiveTab('rewards')} className={`flex-1 py-3 px-4 rounded-lg font-medium transition min-w-[70px] ${activeTab === 'rewards' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🎁 兌換</button>
-              <button onClick={() => setActiveTab('free')} className={`flex-1 py-3 px-4 rounded-lg font-medium transition min-w-[70px] ${activeTab === 'free' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🎀 免費</button>
               <button onClick={() => setActiveTab('gacha')} className={`flex-1 py-3 px-4 rounded-lg font-medium transition min-w-[70px] ${activeTab === 'gacha' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🎰 福引</button>
               <button onClick={() => setActiveTab('code')} className={`flex-1 py-3 px-4 rounded-lg font-medium transition min-w-[70px] ${activeTab === 'code' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>🎫 兌換碼</button>
               <button onClick={() => setActiveTab('history')} className={`flex-1 py-3 px-4 rounded-lg font-medium transition min-w-[70px] ${activeTab === 'history' ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-orange-100'}`}>📋 紀錄</button>
@@ -586,9 +584,67 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 福引獎品一覽 */}
-          {activeTab === 'prizeList' && (
+          {/* 兌換分頁 - 付費獎品 + 免費贈物 */}
+          {activeTab === 'rewards' && (
             <div>
+              {/* 付費獎品區 */}
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">🎁 可兌換獎品</h2>
+              {rewards.length === 0 ? (
+                <div className="bg-white rounded-2xl shadow-lg p-8 text-center text-gray-500 mb-8">目前沒有可兌換的獎品</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                  {rewards.map((reward) => (
+                    <div key={reward.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition">
+                      <div className="h-48 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
+                        {reward.image_url ? <img src={reward.image_url} alt={reward.name} className="w-full h-full object-cover"/> : <span className="text-6xl">🎁</span>}
+                      </div>
+                      <div className="p-4">
+                        <h3 className="text-lg font-bold text-gray-800 mb-1">{reward.name}</h3>
+                        {reward.description && <p className="text-sm text-gray-500 mb-2">{reward.description}</p>}
+                        <div className="flex justify-between items-center mb-3"><span className="text-green-600 font-bold">🐟 {reward.cost} 個</span><span className="text-gray-500 text-sm">剩餘 {reward.quantity}</span></div>
+                        <button onClick={() => handleRedeem(reward)} disabled={!dbUser || dbUser.points < reward.cost} className={`w-full py-2 rounded-lg font-bold transition ${dbUser && dbUser.points >= reward.cost ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>{!dbUser || dbUser.points < reward.cost ? '點數不足' : '兌換'}</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 免費贈物區 */}
+              {freeGifts.length > 0 && (
+                <>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4">🎀 免費贈物 <span className="text-sm font-normal text-pink-500">（只需付運費）</span></h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {freeGifts.map((gift) => (
+                      <div key={gift.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition border-2 border-pink-200">
+                        <div className="h-48 bg-gradient-to-br from-pink-100 to-pink-200 flex items-center justify-center relative">
+                          {gift.image_url ? <img src={gift.image_url} alt={gift.name} className="w-full h-full object-cover"/> : <span className="text-6xl">🎀</span>}
+                          <div className="absolute top-2 right-2 bg-pink-500 text-white px-3 py-1 rounded-full text-sm font-bold">免費</div>
+                        </div>
+                        <div className="p-4">
+                          <h3 className="text-lg font-bold text-gray-800 mb-1">{gift.name}</h3>
+                          {gift.description && <p className="text-sm text-gray-500 mb-2">{gift.description}</p>}
+                          <div className="flex justify-between items-center mb-3"><span className="text-pink-600 font-bold">✨ 免費領取</span><span className="text-gray-500 text-sm">剩餘 {gift.quantity}</span></div>
+                          <button onClick={() => handleClaimFreeGift(gift)} disabled={gift.quantity <= 0} className={`w-full py-2 rounded-lg font-bold transition ${gift.quantity > 0 ? 'bg-pink-500 hover:bg-pink-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>{gift.quantity <= 0 ? '已領完' : '領取'}</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {rewards.length === 0 && freeGifts.length === 0 && (
+                <div className="bg-white rounded-2xl shadow-lg p-8 text-center text-gray-500">
+                  <div className="text-4xl mb-2">🎁</div>
+                  <p>目前沒有可兌換或領取的獎品</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 福引分頁 - 獎品一覽 + 抽獎 */}
+          {activeTab === 'gacha' && (
+            <div>
+              {/* 獎品一覽區 */}
               <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">🎯 植物園福引抽獎</h2>
                 <p className="text-center text-gray-500 mb-6">使用 3 個鯛魚燒抽一次，試試你的運氣！</p>
@@ -614,10 +670,93 @@ export default function Home() {
 
                 {/* 獎品圖片展示 */}
                 {prizes.some(p => p.image_url) && (
-                  <div>
+                  <div className="mb-6">
                     <h3 className="text-lg font-bold text-gray-700 mb-3 text-center">✨ 獎品展示</h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                       {prizes.filter(p => p.image_url).map((prize) => (
+                        <div key={prize.id} className="relative group">
+                          <div className="aspect-square rounded-xl overflow-hidden bg-gray-100 border-2" style={{ borderColor: prize.rank_color || '#6B7280' }}>
+                            <img src={prize.image_url} alt={prize.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-300"/>
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-2 text-center text-sm rounded-b-xl">
+                            <span className="px-2 py-0.5 rounded text-xs font-bold mr-1" style={{ backgroundColor: prize.rank_color || '#6B7280' }}>{prize.rank_name || '五等賞'}</span>
+                            <span className="block truncate mt-1">{prize.name}</span>
+                          </div>
+                          {prize.quantity <= 0 && (
+                            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-xl">
+                              <span className="text-white font-bold text-lg">已抽完</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 抽獎區 */}
+              <div className="bg-white rounded-2xl shadow-lg p-8 max-w-lg mx-auto">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">🎰 開始抽獎</h2>
+                
+                {/* 天井進度 */}
+                <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-purple-700">🎯 天井進度</span>
+                    <span className="text-sm text-gray-600">累計 {pityProgress.total} 抽</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-4 mb-2">
+                    <div 
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-4 rounded-full transition-all duration-500"
+                      style={{ width: `${(pityProgress.current / 35) * 100}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-purple-600">{pityProgress.current} / 35</span>
+                    <span className="text-gray-500">
+                      {pityProgress.current === 0 && pityProgress.total > 0 
+                        ? '🎉 已達成天井！' 
+                        : `還差 ${pityProgress.next} 抽`}
+                    </span>
+                  </div>
+                  {pityProgress.milestone > 0 && (
+                    <p className="text-xs text-purple-500 mt-2 text-center">
+                      已達成 {pityProgress.milestone} 次天井
+                    </p>
+                  )}
+                </div>
+
+                <div className="text-center mb-6">
+                  <p className="text-gray-600">單抽：<span className="text-orange-600 font-bold">3 個鯛魚燒</span></p>
+                  <p className="text-gray-600">十連抽：<span className="text-orange-600 font-bold">30 個鯛魚燒</span><span className="text-green-600 ml-2">（送 3 個回饋！）</span></p>
+                </div>
+                <div className="h-48 flex items-center justify-center mb-6 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl">
+                  {isDrawing ? <div className="text-center"><div className="animate-bounce text-6xl mb-2">🎰</div><p className="text-gray-600">抽獎中...</p></div>
+                  : drawResults.length > 0 ? <div className="text-center w-full px-4"><p className="font-bold mb-2">十連抽結果：</p><div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto">{drawResults.map((result, idx) => <div key={idx} className={`text-sm p-2 rounded ${result.isWin ? 'bg-yellow-100 text-yellow-800 font-bold' : 'bg-gray-100 text-gray-600'}`}>{idx + 1}. {result.name}</div>)}</div></div>
+                  : drawResult ? <div className={`text-center ${drawResult.isWin ? 'animate-pulse' : ''}`}><div className={`text-4xl font-bold ${drawResult.isWin ? 'text-yellow-500' : 'text-gray-500'}`}>{drawResult.name}</div>{drawResult.isWin && <p className="text-yellow-600 mt-2">🎊 恭喜中獎！</p>}</div>
+                  : <div className="text-6xl">🐟</div>}
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <button onClick={handleSingleDraw} disabled={isDrawing || !dbUser || dbUser.points < 3} className={`py-3 rounded-lg font-bold text-lg transition ${!isDrawing && dbUser && dbUser.points >= 3 ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>{isDrawing ? '...' : '單抽 (3)'}</button>
+                  <button onClick={handleMultiDraw} disabled={isDrawing || !dbUser || dbUser.points < 30} className={`py-3 rounded-lg font-bold text-lg transition ${!isDrawing && dbUser && dbUser.points >= 30 ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>{isDrawing ? '...' : '十連抽 (30)'}</button>
+                </div>
+                
+                {/* 獎品池摘要 */}
+                <div className="border-t pt-4">
+                  <h3 className="font-bold text-gray-700 mb-2">🎁 獎品池（剩餘數量）</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {prizes.filter(p => p.quantity > 0).map((prize) => (
+                      <span key={prize.id} className="px-2 py-1 rounded text-xs text-white" style={{ backgroundColor: prize.rank_color || '#6B7280' }}>
+                        {prize.rank_name}: {prize.quantity}
+                      </span>
+                    ))}
+                    {prizes.filter(p => p.quantity > 0).length === 0 && <p className="text-gray-500 text-sm">獎品池已空</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'code' && (
                         <div key={prize.id} className="relative group">
                           <div className="aspect-square rounded-xl overflow-hidden bg-gray-100 border-2" style={{ borderColor: prize.rank_color || '#6B7280' }}>
                             <img src={prize.image_url} alt={prize.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-300"/>
@@ -648,164 +787,6 @@ export default function Home() {
             </div>
           )}
 
-          {activeTab === 'rewards' && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">🎁 可兌換獎品</h2>
-              {rewards.length === 0 ? <div className="bg-white rounded-2xl shadow-lg p-8 text-center text-gray-500">目前沒有可兌換的獎品</div> : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {rewards.map((reward) => (
-                    <div key={reward.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition">
-                      <div className="h-48 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
-                        {reward.image_url ? <img src={reward.image_url} alt={reward.name} className="w-full h-full object-cover"/> : <span className="text-6xl">🎁</span>}
-                      </div>
-                      <div className="p-4">
-                        <h3 className="text-lg font-bold text-gray-800 mb-1">{reward.name}</h3>
-                        {reward.description && <p className="text-sm text-gray-500 mb-2">{reward.description}</p>}
-                        <div className="flex justify-between items-center mb-3"><span className="text-green-600 font-bold">🐟 {reward.cost} 個</span><span className="text-gray-500 text-sm">剩餘 {reward.quantity}</span></div>
-                        <button onClick={() => handleRedeem(reward)} disabled={!dbUser || dbUser.points < reward.cost} className={`w-full py-2 rounded-lg font-bold transition ${dbUser && dbUser.points >= reward.cost ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>{!dbUser || dbUser.points < reward.cost ? '點數不足' : '兌換'}</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'free' && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">🎀 免費贈物</h2>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                <p className="text-yellow-800 text-sm">💝 這些是免費贈送的物品，只需支付運費即可領取！</p>
-                <p className="text-yellow-800 text-sm mt-1">📦 領取後請到「郵寄」分頁填寫收件資料，或使用賣貨便下單。</p>
-              </div>
-              {freeGifts.length === 0 ? (
-                <div className="bg-white rounded-2xl shadow-lg p-8 text-center text-gray-500">
-                  <div className="text-5xl mb-4">🎁</div>
-                  <p>目前沒有免費贈物</p>
-                  <p className="text-sm mt-2">請稍後再來看看喵～</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {freeGifts.map((gift) => (
-                    <div key={gift.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition border-2 border-pink-200">
-                      <div className="h-48 bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center relative">
-                        {gift.image_url ? <img src={gift.image_url} alt={gift.name} className="w-full h-full object-cover"/> : <span className="text-6xl">🎀</span>}
-                        <div className="absolute top-2 right-2 bg-pink-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-                          免費
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <h3 className="text-lg font-bold text-gray-800 mb-1">{gift.name}</h3>
-                        {gift.description && <p className="text-sm text-gray-500 mb-2">{gift.description}</p>}
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="text-pink-600 font-bold">✨ 免費領取</span>
-                          <span className="text-gray-500 text-sm">剩餘 {gift.quantity}</span>
-                        </div>
-                        <button 
-                          onClick={() => handleClaimFreeGift(gift)} 
-                          className="w-full py-2 rounded-lg font-bold transition bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white"
-                        >
-                          🎁 領取
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'gacha' && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">🎰 福引抽獎</h2>
-              <div className="bg-white rounded-2xl shadow-lg p-6 max-w-lg mx-auto">
-                {/* 天井進度 */}
-                <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-bold text-purple-700">🎯 天井進度</span>
-                    <span className="text-sm text-gray-600">累計 {pityProgress.total} 抽</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-4 mb-2">
-                    <div 
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-4 rounded-full transition-all duration-500"
-                      style={{ width: `${(pityProgress.current / 35) * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-purple-600">{pityProgress.current} / 35</span>
-                    <span className="text-gray-500">
-                      {pityProgress.current === 0 && pityProgress.total > 0 
-                        ? '🎉 已達成天井！' 
-                        : `還差 ${pityProgress.next} 抽`}
-                    </span>
-                  </div>
-                  {pityProgress.milestone > 0 && (
-                    <p className="text-xs text-purple-500 mt-2 text-center">
-                      已達成 {pityProgress.milestone} 次天井
-                    </p>
-                  )}
-                </div>
-
-                <div className="text-center mb-4">
-                  <p className="text-gray-600">單抽：<span className="text-orange-600 font-bold">3 個鯛魚燒</span></p>
-                  <p className="text-gray-600">十連抽：<span className="text-orange-600 font-bold">30 個鯛魚燒</span><span className="text-green-600 ml-2">（送 3 個回饋！）</span></p>
-                </div>
-                <div className="h-40 flex items-center justify-center mb-4 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl">
-                  {isDrawing ? <div className="text-center"><div className="animate-bounce text-6xl mb-2">🎰</div><p className="text-gray-600">抽獎中...</p></div>
-                  : drawResults.length > 0 ? <div className="text-center w-full px-4"><p className="font-bold mb-2">十連抽結果：</p><div className="grid grid-cols-2 gap-2 max-h-28 overflow-y-auto">{drawResults.map((result, idx) => <div key={idx} className={`text-sm p-2 rounded ${result.isWin ? 'bg-yellow-100 text-yellow-800 font-bold' : 'bg-gray-100 text-gray-600'}`}>{idx + 1}. {result.name}</div>)}</div></div>
-                  : drawResult ? <div className={`text-center ${drawResult.isWin ? 'animate-pulse' : ''}`}><div className={`text-3xl font-bold ${drawResult.isWin ? 'text-yellow-500' : 'text-gray-500'}`}>{drawResult.name}</div>{drawResult.isWin && <p className="text-yellow-600 mt-2">🎊 恭喜中獎！</p>}</div>
-                  : <div className="text-6xl">🐟</div>}
-                </div>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <button onClick={handleSingleDraw} disabled={isDrawing || !dbUser || dbUser.points < 3} className={`py-3 rounded-lg font-bold text-lg transition ${!isDrawing && dbUser && dbUser.points >= 3 ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>{isDrawing ? '...' : '單抽 (3)'}</button>
-                  <button onClick={handleMultiDraw} disabled={isDrawing || !dbUser || dbUser.points < 30} className={`py-3 rounded-lg font-bold text-lg transition ${!isDrawing && dbUser && dbUser.points >= 30 ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>{isDrawing ? '...' : '十連抽 (30)'}</button>
-                </div>
-                <div className="border-t pt-4"><h3 className="font-bold text-gray-700 mb-2">🎁 獎品池</h3><div className="space-y-2 max-h-40 overflow-y-auto">{prizes.map((prize) => <div key={prize.id} className="flex justify-between items-center bg-gray-50 p-2 rounded"><span>{prize.name}</span><span className="text-sm text-gray-500">剩 {prize.quantity}</span></div>)}{prizes.length === 0 && <p className="text-gray-500 text-center py-4">暫無獎品</p>}</div></div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'code' && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">🎫 兌換碼</h2>
-              <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md mx-auto">
-                <div className="text-center mb-6">
-                  <div className="text-6xl mb-4">🎁</div>
-                  <p className="text-gray-600">輸入兌換碼獲得鯛魚燒！</p>
-                  <p className="text-sm text-gray-500 mt-2">兌換碼可從 Discord 活動中獲得</p>
-                </div>
-                <div className="space-y-4">
-                  <input
-                    type="text"
-                    value={redeemCode}
-                    onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
-                    placeholder="請輸入兌換碼"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-center text-xl font-mono uppercase focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition"
-                    maxLength={20}
-                  />
-                  <button
-                    onClick={handleRedeemCode}
-                    disabled={isRedeeming || !redeemCode.trim()}
-                    className={`w-full py-3 rounded-xl font-bold text-lg transition ${
-                      !isRedeeming && redeemCode.trim()
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    {isRedeeming ? '兌換中...' : '🎉 兌換'}
-                  </button>
-                </div>
-                <div className="mt-6 pt-6 border-t">
-                  <h3 className="font-bold text-gray-700 mb-3">💡 如何獲得兌換碼？</h3>
-                  <ul className="text-sm text-gray-600 space-y-2">
-                    <li>• 參加 Discord 伺服器活動</li>
-                    <li>• 特殊節日限定發放</li>
-                    <li>• 管理員不定期放送</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
 
           {activeTab === 'shipping' && hasWonPrize && (
             <div>
